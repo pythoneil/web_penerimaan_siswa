@@ -1,0 +1,69 @@
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Daftar;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+
+class DaftarController extends Controller
+{
+    public function showFormulir()
+    {
+        $datas = Daftar::where('user_id', Auth::user()->id)->get();
+        return view('formulir', compact('datas'));
+    }
+
+    public function createOrUpdate(Request $request, $id = null)
+    {
+        try {
+            $uploadPath = 'image/';
+
+            $fileFields = ['upload_file_kk', 'upload_file_akte', 'upload_file_kip'];
+
+            $data = $request->except(['_token', 'name', 'email', 'jenis_kelamin', 'telephon', 'alamat', 'tempat_lahir', 'tanggal_lahir',
+                'asal_sekolah', 'agama', 'jarak_rumah_kesekolah', 'total_nilai_rata_rata', 'nama_ayah', 'alamat_ayah',
+                'nomor_telpon_ayah', 'pendidikan_terakhir_ayah', 'nama_ibu', 'alamat_ibu', 'nomor_telpon_ibu',
+                'pendidikan_terakhir_ibu', 'upload_file_kk', 'upload_file_akte', 'upload_file_kip']); // (hapus yang tidak perlu)
+
+            foreach ($fileFields as $field) {
+                if ($file = $request->file($field)) {
+                    if ($id && $existingData->{$field}) {
+                        Storage::delete($existingData->{$field});
+                    }
+
+                    $destinationPath = $uploadPath;
+                    $imageName = $file->getClientOriginalName();
+                    $file->move($destinationPath, $imageName);
+
+                    $data[$field] = $imageName;
+                } elseif (empty($data[$field])) {
+                    unset($data[$field]);
+                }
+            }
+
+            if ($id) {
+                $existingData = Daftar::findOrFail($id);
+                $existingData->update($data);
+
+                return redirect('/formulir-ppdb')->with('success', 'Data berhasil disimpan');
+            } else {
+                Daftar::create($data);
+                return redirect('/dashboard-ppdb-siswa')->with('success', 'Data berhasil disimpan');
+            }
+        } catch (\Exception $e) {
+            dd($e->getMessage());
+        }
+    }
+
+    public function editFormulir($id)
+    {
+        $data = Daftar::findOrFail($id);
+        return view('edit_formulir', compact('data'));
+    }
+
+    public function deleteFormulir($id)
+    {
+        Daftar::destroy($id);
+        return redirect('/formulir-ppdb')->with('success', 'Data berhasil dihapus');
+    }
+}
